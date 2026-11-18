@@ -183,17 +183,41 @@ details.plain > summary{ cursor:pointer; color:var(--accent); font-weight:600 }
 var KEY = 'calma.v1';
 var canStore = true;
 var state = null;
-function blank(){ return { v:1, start:null, week:null, settings:{ voz:true, sonido:false, fondo:'lluvia', volFondo:.5, palabra:'soltá' },
+function blank(){ return { v:1, start:null, week:null, settings:{ guia:'voz', fondo:'lluvia', volFondo:.5, palabra:'soltá' }, profile:null,
   read:{}, practice:[], checks:[], tension:[], headaches:[], thoughts:[], worries:[], problems:[], circles:null, ladder:null,
   experiments:[], scales:[], sens:[], alarms:null, relapse:'', uncert:[],
-  water:{}, waterGoal:8, meals:{}, acts:['Caminar','Kinesio','Natación'], moves:[], moveGoal:3, tasks:[], bills:[], paid:{}, meds:[], medNames:[], mornings:{}, nights:{} }; }
+  water:{}, waterGoal:8, meals:{}, acts:[], moves:[], moveGoal:3, tasks:[], bills:[], paid:{}, meds:[], medNames:[], mornings:{}, nights:{} }; }
 function load(){
   try{ var raw = localStorage.getItem(KEY); state = raw ? JSON.parse(raw) : blank(); }
   catch(e){ canStore = false; state = blank(); }
+  migrate();
+}
+var AREAS = [['mandibula','Mandíbula apretada o bruxismo'],['cuello','Cuello y hombros tensos'],['cabeza','Dolores de cabeza'],['social','Ansiedad con gente (ansiedad social)'],['transpirar','Miedo a transpirar o a ponerte colorado']];
+function allAreas(){ var a = {}; AREAS.forEach(function(x){ a[x[0]] = true; }); return a; }
+function migrate(){
+  var st = state.settings || (state.settings = {});
+  if(!('guia' in st)) st.guia = st.voz === false ? (st.sonido ? 'tonos' : 'nada') : 'voz';
   var b = blank(); for(var k in b){ if(!(k in state)) state[k] = b[k]; }
-  for(var s in b.settings){ if(!(s in state.settings)) state.settings[s] = b.settings[s]; }
-  if(!state.circles) state.circles = seedCircles();
-  if(!state.ladder) state.ladder = seedLadder();
+  for(var s in b.settings){ if(!(s in st)) st[s] = b.settings[s]; }
+  if(state.start && !state.profile) state.profile = { name:'', areas:allAreas() };
+  if(state.start){ if(!state.circles) state.circles = seedCircles(); if(!state.ladder) state.ladder = seedLadder(); }
+}
+function has(a){ return !state.profile || !state.profile.areas || state.profile.areas[a] !== false; }
+function hasAny(list){ return list.some(has); }
+var LESSON_AREA = { l4:['mandibula','cuello','cabeza'], l5:['transpirar'], l9:['mandibula'], l10:['cuello'], l11:['cabeza'], l17:['social'], l18:['social'], l19:['social'] };
+function lessonOn(id){ return !LESSON_AREA[id] || hasAny(LESSON_AREA[id]); }
+function wl(w){ return w.lessons.filter(lessonOn); }
+function wt(w){
+  if(w.n === 3){ var p = []; if(has('mandibula')) p.push('mandíbula'); if(has('cuello')) p.push('cuello'); if(has('cabeza')) p.push('dolor de cabeza');
+    if(!p.length) return 'El cuerpo y la tensión'; var t = p.length > 1 ? p.slice(0, -1).join(', ') + ' y ' + p[p.length - 1] : p[0]; return t.charAt(0).toUpperCase() + t.slice(1); }
+  if(w.n === 6 && !has('social')) return 'Animarte de a poco';
+  return w.title;
+}
+function wx(w){
+  if(w.n === 3){ var p = []; if(has('mandibula')) p.push('las alarmas de mandíbula'); if(has('cuello')) p.push('2 minutos de cuello'); return p.length ? 'Y sumá ' + p.join(' y ') + '.' : 'Y una relajación rápida cada vez que notes tensión.'; }
+  if(w.n === 6 && !has('social')) return 'Hacela muchas veces en el día.';
+  if(w.n === 7 && !has('social')) return 'Y ejercicios de sensaciones.';
+  return w.extra;
 }
 function save(){ try{ localStorage.setItem(KEY, JSON.stringify(state)); canStore = true; }catch(e){ canStore = false; } }
 
@@ -366,8 +390,8 @@ lesson('l24',8,'Sostenerlo',3,[
 
 var WEEKS = [
  { n:1, title:'Entender tu cabeza', lessons:['l1','l2','l3','l4','l5','l25'], practica:{ label:'Respiración lenta', act:'breathe5', min:5 }, extra:'Esta semana, además, hacé las mediciones de arranque en Progreso.' },
- { n:2, title:'Bajar el volumen del cuerpo', lessons:['l6','l7','l8','l26'], practica:{ label:'Relajación de 16 grupos', act:'relax-r16', min:13 }, extra:'Y respirá lento 1 o 2 minutos un par de veces en el día.' },
- { n:3, title:'Mandíbula, cuello y dolor de cabeza', lessons:['l9','l10','l11'], practica:{ label:'Relajación de 7 grupos', act:'relax-r7', min:6 }, extra:'Y sumá las alarmas de mandíbula y 2 minutos de cuello.' },
+ { n:2, title:'Bajar el volumen del cuerpo', lessons:['l6','l7','l8','l26'], practica:{ label:'Relajación de 16 grupos', act:'relax-r16', min:15 }, extra:'Y respirá lento 1 o 2 minutos un par de veces en el día.' },
+ { n:3, title:'Mandíbula, cuello y dolor de cabeza', lessons:['l9','l10','l11'], practica:{ label:'Relajación de 7 grupos', act:'relax-r7', min:7 }, extra:'Y sumá las alarmas de mandíbula y 2 minutos de cuello.' },
  { n:4, title:'Los pensamientos', lessons:['l12','l13','l14'], practica:{ label:'Relajación de 4 grupos', act:'relax-r4', min:4 }, extra:'Y un registro de pensamientos por día.' },
  { n:5, title:'Atención y distancia', lessons:['l15','l16'], practica:{ label:'Soltar sin tensar y palabra señal', act:'relax-senal', min:5 }, extra:'Y unos minutos de atención afuera por día.' },
  { n:6, title:'Ansiedad social', lessons:['l17','l18','l19'], practica:{ label:'Relajación rápida de 20 segundos', act:'relax-rapida', min:1 }, extra:'Hacela muchas veces en el día, y de 3 a 5 prácticas de la escalera por semana.' },
@@ -381,10 +405,15 @@ function currentWeek(){
 }
 
 /* ---------- ejemplos precargados ---------- */
-function seedCircles(){ return [
+function seedCircles(){ var all = [
  { id:uid(), ejemplo:true, titulo:'Calor y gente', disparador:'Lugar con calor y mucha gente (colectivo, local, reunión).', pensamiento:'«Se me va a notar la transpiración y van a pensar que estoy nervioso o que me pasa algo.»', sensaciones:'Calor, transpiración, pulso rápido, tensión en hombros y mandíbula.', hago:'Me pego los brazos, uso ropa oscura, me seco a cada rato, me alejo de la gente, miro si se nota, me voy antes.', despues:'Toda la atención en mí → siento más calor y más transpiración → nunca compruebo que casi nadie lo nota → la próxima vez tengo más miedo.' },
  { id:uid(), ejemplo:true, titulo:'Dolor de cabeza', disparador:'Semana con mucho trabajo y pocas horas de sueño.', pensamiento:'«Otra vez, no se me va a ir con nada, no voy a poder hacer lo que tengo que hacer.»', sensaciones:'Mandíbula apretada, cuello duro, presión en la cabeza.', hago:'Sigo frente a la compu sin pausas, tomo más café, aguanto hasta que explota y tomo el remedio.', despues:'Más tensión y más preocupación por el dolor → el dolor sube → más días con remedio.' }
-]; }
+];
+  var out = [];
+  if(has('transpirar') || has('social')) out.push(has('transpirar') ? all[0] : { id:uid(), ejemplo:true, titulo:'Hablar en un grupo', disparador:'Reunión o grupo donde tengo que hablar u opinar.', pensamiento:'«Me voy a trabar, se me va a notar que estoy nervioso y van a pensar que no sé.»', sensaciones:'Pulso rápido, calor en la cara, tensión en hombros y mandíbula.', hago:'Ensayo mentalmente, hablo poco y rápido, no miro a nadie, me quedo callado.', despues:'Toda la atención en mí → me siento más torpe → nunca compruebo que me fue mejor de lo que creía → la próxima vez tengo más miedo.' });
+  if(has('cabeza')) out.push(all[1]);
+  out.push({ id:uid(), ejemplo:true, titulo:'La cabeza que no para', disparador:'A la noche o en un rato libre, cuando no tengo nada que hacer.', pensamiento:'«¿Y si sale mal? ¿Y si me olvido de algo? Tengo que resolverlo ya.»', sensaciones:'Inquietud, pecho apretado, cuesta dormirse.', hago:'Le doy vueltas, busco en el celular, reviso todo de nuevo, me quedo despierto.', despues:'Cuanto más intento resolverlo todo, más preguntas aparecen → la alarma no se apaga → al otro día más cansancio y más preocupación.' });
+  return out; }
 function seedLadder(){ var base = [
  ['Ir a un lugar con algo de gente a una hora tranquila, con una remera de color claro',20,'Se me va a notar la transpiración y alguien lo va a mirar',40,'Ropa oscura, abrigo para tapar'],
  ['Hacerle una pregunta corta al de la panadería o al cajero',25,'Me va a responder seco y voy a quedar raro',40,'Hablar bajito, no mirar, irme rápido'],
@@ -396,7 +425,9 @@ function seedLadder(){ var base = [
  ['Sacarme el abrigo y levantar los brazos con una remera clara en un lugar con gente',70,'Van a ver las manchas y van a pensar que estoy nervioso o que soy desprolijo',75,'Abrigo puesto, brazos pegados'],
  ['Decir que no estoy de acuerdo con algo en una reunión',80,'Van a pensar que soy conflictivo o que no sé',75,'Disculparme de más, callarme'],
  ['Presentar 5 minutos al equipo dejando que se note el calor o la transpiración',90,'Se va a notar muchísimo, me voy a quedar en blanco y van a pensar menos de mí',80,'Leer todo, no mirar, tapar, apurar el final']
-]; return base.map(function(b){ return { id:uid(), ejemplo:true, sit:b[0], suds:b[1], pred:b[2], cre:b[3], muletas:b[4] }; }); }
+]; if(!has('social') && !has('transpirar')) return [];
+  if(!has('transpirar')) base = base.filter(function(b){ return !/transpir|húmed|manchas|calor|remera clara/i.test(b[0] + ' ' + b[2]); }).concat([['Llamar por teléfono para pedir un turno o hacer una consulta',30,'Me voy a trabar y la persona se va a impacientar',55,'Escribir el guion entero, cortar rápido'],['Pedirle a un desconocido que me saque una foto o me indique algo',45,'Me va a mirar raro o me va a decir que no',55,'Pedir perdón de más, irme enseguida']]).sort(function(a, b){ return a[1] - b[1]; });
+  return base.map(function(b){ return { id:uid(), ejemplo:true, sit:b[0], suds:b[1], pred:b[2], cre:b[3], muletas:b[4] }; }); }
 
 /* ---------- relajación: guiones ---------- */
 var G16 = [
@@ -435,7 +466,8 @@ var G4 = [
 function tenseRelease(groups, tense, relax){
   var steps = [{ title:'Preparate', text:'Sentate cómodo, con los pies en el piso. Podés cerrar los ojos o dejarlos apoyados en un punto. Respirá normal.', secs:15 }];
   groups.forEach(function(g, i){
-    steps.push({ title:g[0], text:'Tensá: ' + g[1] + ' Notá dónde se siente la tensión.', secs:tense, tag:'tensá' });
+    steps.push({ title:g[0], text:g[1], secs:5 });
+    steps.push({ title:g[0], text:'Tensá ahora. Notá dónde se siente la tensión.', secs:tense, tag:'tensá' });
     steps.push({ title:g[0], text:'Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.' + (i === 0 ? ' Esa diferencia es lo que estás aprendiendo a reconocer.' : ''), secs:relax, tag:'soltá' });
   });
   steps.push({ title:'Recorré el cuerpo', text:'Recorré despacio todo el cuerpo. Si queda alguna zona tensa, soltala un poco más. Mandíbula floja, dientes separados.', secs:30 });
@@ -469,8 +501,8 @@ function diffSteps(){
   ];
 }
 var RELAX = {
-  r16:{ name:'16 grupos', min:13, desc:'La versión completa para aprender a notar la tensión. Unos 13 minutos.', steps:function(){ return tenseRelease(G16, 6, 26); } },
-  r7:{ name:'7 grupos', min:6, desc:'Cuando la de 16 ya sale bien. Unos 6 minutos.', steps:function(){ return tenseRelease(G7, 6, 28); } },
+  r16:{ name:'16 grupos', min:15, desc:'La versión completa para aprender a notar la tensión. Unos 15 minutos.', steps:function(){ return tenseRelease(G16, 6, 26); } },
+  r7:{ name:'7 grupos', min:7, desc:'Cuando la de 16 ya sale bien. Unos 7 minutos.', steps:function(){ return tenseRelease(G7, 6, 28); } },
   r4:{ name:'4 grupos', min:4, desc:'Versión corta con tensión. Unos 4 minutos.', steps:function(){ return tenseRelease(G4, 6, 30); } },
   senal:{ name:'Soltar sin tensar + palabra señal', min:5, desc:'Sin tensar: recordar y soltar, contar, y atar la palabra señal a la exhalación. Unos 5 minutos.', steps:recallSteps },
   rapida:{ name:'Relajación rápida', min:1, desc:'De 20 a 40 segundos, para usar muchas veces por día.', steps:rapidSteps },
@@ -521,6 +553,7 @@ function pauseSteps(){ return [
 ]; }
 
 /* ---------- respiración ---------- */
+function sensSteps(x){ return [{ title:x.name, text:x.how, secs:x.secs }, { title:'Quedate con las sensaciones', text:'Notá el pulso, el calor o la transpiración. No hagas nada para frenarlos: ni secarte, ni respirar para calmarte. Solo observá cómo son y cómo cambian.', secs:60 }]; }
 var PATTERNS = {
   slow:{ name:'Lento y suave (4 y 6)', phases:[['Inhalá',4,1],['Exhalá',6,.55]] },
   easy:{ name:'Para empezar (3 y 4)', phases:[['Inhalá',3,1],['Exhalá',4,.55]] },
@@ -534,7 +567,7 @@ var AU = { ctx:null, bg:null, testT:null };
 var FONDOS = [['none','Sin sonido'],['lluvia','Lluvia'],['mar','Mar'],['viento','Viento'],['musica','Música suave']];
 function fondoName(k){ var f = FONDOS.filter(function(x){ return x[0] === k; })[0]; return f ? f[1] : 'Sin sonido'; }
 function actx(){ if(!AU.ctx){ var C = window.AudioContext || window.webkitAudioContext; if(!C) return null; AU.ctx = new C(); } if(AU.ctx.state === 'suspended') AU.ctx.resume(); return AU.ctx; }
-function tone(f, d){ if(!state.settings.sonido) return; try{ var c = actx(); if(!c) return; var o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(.06, c.currentTime + .05); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d + .05); }catch(e){} }
+function tone(f, d){ if(state.settings.guia !== 'tonos') return; try{ var c = actx(); if(!c) return; var o = c.createOscillator(), g = c.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0, c.currentTime); g.gain.linearRampToValueAtTime(.06, c.currentTime + .05); g.gain.exponentialRampToValueAtTime(.0001, c.currentTime + d); o.connect(g); g.connect(c.destination); o.start(); o.stop(c.currentTime + d + .05); }catch(e){} }
 function noiseBuf(c, brown){
   var n = c.sampleRate * 6, b = c.createBuffer(1, n, c.sampleRate), d = b.getChannelData(0), last = 0, i;
   for(i = 0; i < n; i++){ var w = Math.random() * 2 - 1; if(brown){ last = (last + .02 * w) / 1.02; d[i] = last * 3.5; } else d[i] = w * .5; }
@@ -574,6 +607,27 @@ function stopBg(){
   try{ if(bg.iv) clearInterval(bg.iv); var c = AU.ctx; bg.out.gain.cancelScheduledValues(c.currentTime); bg.out.gain.setTargetAtTime(0, c.currentTime, .4);
     setTimeout(function(){ bg.srcs.forEach(function(s){ try{ s.stop(); }catch(e){} }); try{ bg.out.disconnect(); }catch(e){} }, 1800); }catch(e){}
 }
+var VOZ = {"Pará un segundo. Esto es la alarma. Es incómoda, no es peligrosa. No tenés que hacer que se vaya.": "voz/0f89956d9119.mp3", "inhalá": "voz/c0be550e2086.mp3", "exhalá": "voz/d340c5eb9a73.mp3", "Soltá. Labios juntos, dientes separados, lengua en el paladar. Hombros abajo. Manos sueltas. Con cada exhalación pensá soltá.": "voz/fe31c271739a.mp3", "Afuera. Nombrá en voz baja 5 cosas que ves, 3 que oís y 1 que tocás.": "voz/f319bd192bc4.mp3", "Ponele nombre. Decite qué es: estoy ansioso, es el calor, es la preocupación de siempre. Ponerle nombre baja la intensidad.": "voz/d318f11e9cec.mp3", "Volvé. ¿Qué estabas haciendo? Volvé a eso. La ansiedad puede quedarse un rato; no hace falta que se vaya para seguir.": "voz/d0016ef8c259.mp3", "Parate. Dejá la pantalla y parate.": "voz/75f11b7b169e.mp3", "Omóplatos. Atrás y abajo, sostené unos segundos y soltá. Varias veces.": "voz/52c37073be6e.mp3", "Girar. Girá la cabeza lento a cada lado, sin dolor.": "voz/00aedc388037.mp3", "Inclinar. Oreja hacia el hombro, suave, cada lado.": "voz/a49b7b20293a.mp3", "Mandíbula. Labios juntos, dientes separados, lengua arriba. Hombros abajo.": "voz/ec295c77c830.mp3", "Preparate. Pisá la banda con los pies separados al ancho de la cadera. Dientes separados, respirá normal.": "voz/0911d6582954.mp3", "Brazo derecho. Subí el brazo de costado hasta la altura del hombro y bajá lento. A tu ritmo, sin aguantar el aire.": "voz/e1cd17625198.mp3", "Brazo izquierdo. Ahora el izquierdo. Subí hasta el hombro, bajá lento.": "voz/edce68bc113e.mp3", "Soltá. Dejá caer los hombros, mové suave el cuello. Listo por hoy.": "voz/86f7e42c0f2e.mp3", "Preparate. Banda a mano. Regla del dolor: hasta 3 o 4 de 10 que se va al terminar está bien. Si aparece hormigueo o mareo, cortá.": "voz/e33c709f3bbf.mp3", "Remo con banda · serie 1 de 3. 12 a 15 repeticiones juntando los omóplatos.": "voz/ddfcd839e33d.mp3", "Descanso. Respirá normal. Mandíbula floja.": "voz/c08281720de0.mp3", "Remo con banda · serie 2 de 3. 12 a 15 repeticiones juntando los omóplatos.": "voz/8cb26e81b5de.mp3", "Remo con banda · serie 3 de 3. 12 a 15 repeticiones juntando los omóplatos.": "voz/c433e4f2d5af.mp3", "Elevación lateral · serie 1 de 3. 10 a 12 por brazo, bajando lento.": "voz/f1848f81819c.mp3", "Elevación lateral · serie 2 de 3. 10 a 12 por brazo, bajando lento.": "voz/d3ecc170472e.mp3", "Elevación lateral · serie 3 de 3. 10 a 12 por brazo, bajando lento.": "voz/dc2e984e5e71.mp3", "Encogimiento de hombros · serie 1 de 3. 10 a 12, subiendo hacia las orejas y bajando lento.": "voz/33c62b441eec.mp3", "Encogimiento de hombros · serie 2 de 3. 10 a 12, subiendo hacia las orejas y bajando lento.": "voz/4c122d018149.mp3", "Encogimiento de hombros · serie 3 de 3. 10 a 12, subiendo hacia las orejas y bajando lento.": "voz/b4e1397d7313.mp3", "Mentón adentro. Contra la pared: mentón adentro sin levantar la cabeza, sostené 10 segundos y soltá. Repetí.": "voz/88eddae625fa.mp3", "Movilidad. Girá e inclinná la cabeza lento, solo hasta donde no duela.": "voz/262bdd885d85.mp3", "Preparate. Sentate cómodo, con los pies en el piso. Podés cerrar los ojos o dejarlos apoyados en un punto. Respirá normal.": "voz/998dd1d54e3d.mp3", "Mano y antebrazo derecho. Cerrá el puño derecho con la mitad de la fuerza.": "voz/d307dcc30585.mp3", "Mano y antebrazo derecho. Tensá ahora. Notá dónde se siente la tensión.": "voz/07fbb47a9b48.mp3", "Mano y antebrazo derecho. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto. Esa diferencia es lo que estás aprendiendo a reconocer.": "voz/be3a281091c4.mp3", "Brazo derecho. Doblá el codo y apretá el codo contra el costado o el apoyabrazos.": "voz/d1ffdb6e6a38.mp3", "Brazo derecho. Tensá ahora. Notá dónde se siente la tensión.": "voz/44c54f3ab6f3.mp3", "Brazo derecho. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/253c86adec59.mp3", "Mano y antebrazo izquierdo. Cerrá el puño izquierdo con la mitad de la fuerza.": "voz/c57aebfed519.mp3", "Mano y antebrazo izquierdo. Tensá ahora. Notá dónde se siente la tensión.": "voz/ed38c85389e0.mp3", "Mano y antebrazo izquierdo. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/553acb00e156.mp3", "Brazo izquierdo. Doblá el codo y apretá el codo contra el costado o el apoyabrazos.": "voz/109cc7737772.mp3", "Brazo izquierdo. Tensá ahora. Notá dónde se siente la tensión.": "voz/f8e63ff50765.mp3", "Brazo izquierdo. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/a8b7328c8bcf.mp3", "Frente. Subí las cejas, arrugando la frente.": "voz/2546eef4a971.mp3", "Frente. Tensá ahora. Notá dónde se siente la tensión.": "voz/cc6424ed9ca0.mp3", "Frente. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/fd4a6db1ddd4.mp3", "Ojos y nariz. Cerrá fuerte los ojos y arrugá un poco la nariz.": "voz/4ab4c5794fba.mp3", "Ojos y nariz. Tensá ahora. Notá dónde se siente la tensión.": "voz/6a4a9d4baabc.mp3", "Ojos y nariz. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/5e44690f04fc.mp3", "Mandíbula. Muy suave: juntá apenas los dientes y llevá las comisuras hacia atrás. Sin apretar fuerte.": "voz/caceac98fa98.mp3", "Mandíbula. Tensá ahora. Notá dónde se siente la tensión.": "voz/f65dcdbc100e.mp3", "Mandíbula. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/077dfda562a6.mp3", "Cuello. Muy suave: acercá el mentón al pecho sin tocarlo, sintiendo la tensión adelante.": "voz/fcfdb193f23b.mp3", "Cuello. Tensá ahora. Notá dónde se siente la tensión.": "voz/ef7c6791efc1.mp3", "Cuello. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/8d8c0ae55963.mp3", "Hombros y espalda alta. Subí los hombros hacia las orejas y juntá un poco los omóplatos.": "voz/8b96a39b8457.mp3", "Hombros y espalda alta. Tensá ahora. Notá dónde se siente la tensión.": "voz/bf9eceed8e1b.mp3", "Hombros y espalda alta. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/4032e67ff104.mp3", "Panza. Endurecé la panza como si alguien fuera a empujarte. Respirá normal.": "voz/dbc80a7ac531.mp3", "Panza. Tensá ahora. Notá dónde se siente la tensión.": "voz/452da36788e4.mp3", "Panza. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/819930309c6e.mp3", "Muslo derecho. Apretá el muslo derecho, empujando el talón contra el piso.": "voz/8589c6d76852.mp3", "Muslo derecho. Tensá ahora. Notá dónde se siente la tensión.": "voz/2dec06098f62.mp3", "Muslo derecho. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/602aee477ed6.mp3", "Pantorrilla derecha. Llevá la punta del pie derecho hacia vos.": "voz/822b0dc1bd69.mp3", "Pantorrilla derecha. Tensá ahora. Notá dónde se siente la tensión.": "voz/1d611aefa384.mp3", "Pantorrilla derecha. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/4f7255f0c517.mp3", "Pie derecho. Curvá suave los dedos del pie derecho, pocos segundos.": "voz/b85f7f721b92.mp3", "Pie derecho. Tensá ahora. Notá dónde se siente la tensión.": "voz/489a747ebade.mp3", "Pie derecho. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/759f3e5f7147.mp3", "Muslo izquierdo. Apretá el muslo izquierdo, empujando el talón contra el piso.": "voz/1cedc1e5b8b0.mp3", "Muslo izquierdo. Tensá ahora. Notá dónde se siente la tensión.": "voz/9561683d20c3.mp3", "Muslo izquierdo. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/58a60f552083.mp3", "Pantorrilla izquierda. Llevá la punta del pie izquierdo hacia vos.": "voz/3e1468f64feb.mp3", "Pantorrilla izquierda. Tensá ahora. Notá dónde se siente la tensión.": "voz/975cee90af4a.mp3", "Pantorrilla izquierda. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/f7da43cc928c.mp3", "Pie izquierdo. Curvá suave los dedos del pie izquierdo, pocos segundos.": "voz/a4ce2bb5e004.mp3", "Pie izquierdo. Tensá ahora. Notá dónde se siente la tensión.": "voz/3ef9a8d944be.mp3", "Pie izquierdo. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/53c73e64b5da.mp3", "Recorré el cuerpo. Recorré despacio todo el cuerpo. Si queda alguna zona tensa, soltala un poco más. Mandíbula floja, dientes separados.": "voz/9a37d94da33c.mp3", "Volvé de a poco. Mové los dedos, estirate un poco y abrí los ojos cuando quieras.": "voz/911678c3b907.mp3", "Brazo derecho. Puño cerrado y codo doblado, a la vez.": "voz/dc7728aee13d.mp3", "Brazo derecho. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto. Esa diferencia es lo que estás aprendiendo a reconocer.": "voz/8615a8005db3.mp3", "Brazo izquierdo. Puño cerrado y codo doblado, a la vez.": "voz/b4654a0e0740.mp3", "Cara. Cejas arriba, ojos cerrados, comisuras atrás. Mandíbula muy suave.": "voz/f79b2061ecad.mp3", "Cara. Tensá ahora. Notá dónde se siente la tensión.": "voz/e01d4ba8c072.mp3", "Cara. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/c64147f5402d.mp3", "Cuello. Muy suave: mentón hacia el pecho sin tocarlo.": "voz/e0560dccb20d.mp3", "Tronco. Hombros arriba, omóplatos juntos y panza dura. Respirá normal.": "voz/0073a2a6f285.mp3", "Tronco. Tensá ahora. Notá dónde se siente la tensión.": "voz/092cf9e906ef.mp3", "Tronco. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/4e53820cba50.mp3", "Pierna derecha. Muslo apretado y punta del pie hacia vos.": "voz/04b6944ae40e.mp3", "Pierna derecha. Tensá ahora. Notá dónde se siente la tensión.": "voz/ad5712a70592.mp3", "Pierna derecha. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/dc03168ce731.mp3", "Pierna izquierda. Muslo apretado y punta del pie hacia vos.": "voz/ecfbbb7f7fe3.mp3", "Pierna izquierda. Tensá ahora. Notá dónde se siente la tensión.": "voz/6a8679be702e.mp3", "Pierna izquierda. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/e4aaf3a3e1c6.mp3", "Los dos brazos. Puños cerrados y codos doblados.": "voz/c6dc37079a08.mp3", "Los dos brazos. Tensá ahora. Notá dónde se siente la tensión.": "voz/7f738fcbff8e.mp3", "Los dos brazos. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto. Esa diferencia es lo que estás aprendiendo a reconocer.": "voz/5d87a9953546.mp3", "Cara y cuello. Cejas arriba, ojos cerrados, mentón apenas hacia el pecho. Todo suave.": "voz/8a4143700c11.mp3", "Cara y cuello. Tensá ahora. Notá dónde se siente la tensión.": "voz/7d092b43ee64.mp3", "Cara y cuello. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/dd866968ff4e.mp3", "Tronco. Hombros arriba, omóplatos juntos, panza dura. Respirá normal.": "voz/b7bcddba18fc.mp3", "Las dos piernas. Muslos apretados y puntas de los pies hacia vos.": "voz/db49babbf786.mp3", "Las dos piernas. Tensá ahora. Notá dónde se siente la tensión.": "voz/6680c513910f.mp3", "Las dos piernas. Soltá de golpe. Dejá que se afloje y notá la diferencia entre tenso y suelto.": "voz/31bf6a04b17b.mp3", "Solo soltar. Hoy no tensás nada. Vas a recordar cómo se sentía cada zona suelta y dejarla ir.": "voz/947ecb86bfe4.mp3", "Los dos brazos. Llevá la atención a los dos brazos. Recordá cómo se sentía suelto y dejá que se afloje. Si hay tensión, solo notala y soltala un poco.": "voz/ecf12872de0b.mp3", "Cara y cuello. Llevá la atención a cara y cuello. Recordá cómo se sentía suelto y dejá que se afloje. Si hay tensión, solo notala y soltala un poco.": "voz/aee773a62892.mp3", "Tronco. Llevá la atención a tronco. Recordá cómo se sentía suelto y dejá que se afloje. Si hay tensión, solo notala y soltala un poco.": "voz/2cd4ed4de1fd.mp3", "Las dos piernas. Llevá la atención a las dos piernas. Recordá cómo se sentía suelto y dejá que se afloje. Si hay tensión, solo notala y soltala un poco.": "voz/893795d494d8.mp3", "Contando. Ahora contá lento del 1 al 10, una cifra por exhalación. Con cada número, un poco más suelto.": "voz/efb7e002523e.mp3", "Listo. Usá la palabra soltá durante el día: al exhalar, mandíbula, hombros y manos.": "voz/e21bd9d2cbe5.mp3", "Recorrido rápido. Mandíbula floja, dientes separados, lengua arriba. Hombros abajo. Manos sueltas. Seguí con lo que estabas haciendo.": "voz/1d365b26872b.mp3", "Relajar mientras hacés algo. Seguí con lo que estás haciendo (tipear, leer, caminar). Solo vas a dejar trabajando los músculos que hacen falta.": "voz/d123de053b16.mp3", "Mandíbula. ¿Hace falta apretar los dientes para esto? No. Labios juntos, dientes separados, lengua arriba.": "voz/1a402d513028.mp3", "Hombros y cuello. ¿Los hombros están subidos? Dejalos caer. El cuello sostiene la cabeza, nada más.": "voz/d88b3d381708.mp3", "Manos y brazos. Usá solo la fuerza necesaria para el mouse, el teclado o el celular.": "voz/b49f144cc94a.mp3", "Panza y respiración. Panza suelta, respiración lenta y suave, sin cortar lo que estás haciendo.": "voz/8abcd1458a9b.mp3", "Seguí así. Volvé a chequear cada vez que cambies de tarea.": "voz/8e8fdffd12f6.mp3", "Saltar o trotar en el lugar. Saltá o trotá en el lugar con ganas durante un minuto.": "voz/a748b4fcf6ab.mp3", "Quedate con las sensaciones. Notá el pulso, el calor o la transpiración. No hagas nada para frenarlos: ni secarte, ni respirar para calmarte. Solo observá cómo son y cómo cambian.": "voz/23d3f1368d5f.mp3", "Subir escaleras rápido. Subí y bajá escaleras a buen ritmo un minuto.": "voz/9b889bbdc7ed.mp3", "Abrigarte de más. Ponete un buzo o campera en un lugar cálido, o tomá algo caliente, y quedate 5 minutos.": "voz/46404fa15148.mp3", "Girar en una silla. Sentado en una silla que gire, girá despacio durante 30 segundos. Hacelo seguro, sin pararte enseguida.": "voz/9d7e9177079b.mp3", "un poquito más": "voz/3c84ca4816fd.mp3", "exhalá largo": "voz/b89520b3aca6.mp3"};
+var VOZ_EL = null;
+function vozEl(){ if(!VOZ_EL){ VOZ_EL = new Audio(); VOZ_EL.preload = 'auto'; } return VOZ_EL; }
+function normT(t){ return String(t).replace(/[«»]/g, '').replace(/\s+/g, ' ').trim(); }
+var SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+function unlockAudio(){
+  try{ if(navigator.audioSession) navigator.audioSession.type = 'playback'; }catch(e){}
+  actx();
+  try{ var a = vozEl(); if(a.paused){ a.src = SILENT; var pr = a.play(); if(pr && pr.catch) pr.catch(function(){}); } }catch(e){}
+}
+function hush(){ try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){} try{ if(VOZ_EL) VOZ_EL.pause(); }catch(e){} }
+function bowl(kind, dur){
+  if(state.settings.guia !== 'tonos') return;
+  try{ var c = actx(); if(!c) return; var t0 = c.currentTime, end = t0 + Math.max(1.2, dur - .15);
+    var f0 = kind === 'in' ? 174.6 : 220, f1 = kind === 'in' ? 220 : (kind === 'out' ? 164.8 : 220), peak = kind === 'hold' ? .025 : .05;
+    var g = c.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(peak, t0 + Math.min(.8, dur / 3)); g.gain.setValueAtTime(peak, Math.max(t0 + .9, end - .9)); g.gain.linearRampToValueAtTime(0, end); g.connect(c.destination);
+    [[1, 1], [2.005, .22], [3.01, .07]].forEach(function(h){ var o = c.createOscillator(), hg = c.createGain(); o.type = 'sine'; hg.gain.value = h[1];
+      o.frequency.setValueAtTime(f0 * h[0], t0); o.frequency.linearRampToValueAtTime(f1 * h[0], end); o.connect(hg); hg.connect(g); o.start(t0); o.stop(end + .05); });
+  }catch(e){}
+}
+function guiaLabel(){ var g = state.settings.guia; return g === 'voz' ? 'Guía: voz' : (g === 'tonos' ? 'Guía: sonidos' : 'Guía: nada'); }
 var VOICE = null;
 function pickVoice(){
   if(VOICE) return VOICE;
@@ -582,18 +636,18 @@ function pickVoice(){
     vs.sort(function(a, b){ return score(b) - score(a); }); VOICE = vs[0]; return VOICE; }catch(e){ return null; }
 }
 function speak(t, cue){
-  if(!state.settings.voz) return;
+  if(state.settings.guia !== 'voz') return;
+  if(Object.keys(VOZ).length){ var f = VOZ[normT(t)]; if(!f) return null; try{ var a = vozEl(); a.pause(); a.src = f; a.volume = 1; var pr = a.play(); if(pr && pr.catch) pr.catch(function(){}); return a; }catch(e){} return null; }
   try{ var s = window.speechSynthesis; if(!s) return; s.cancel(); var u = new SpeechSynthesisUtterance(t.replace(/[«»]/g, '')); u.lang = 'es-AR'; var v = pickVoice(); if(v) u.voice = v; u.rate = cue ? .78 : .9; u.pitch = .95; u.volume = cue ? .85 : 1; s.speak(u); }catch(e){}
 }
 function soundSettings(){
   var st = state.settings;
   return '<div class="card"><p class="h3">Voz y sonido</p>' +
-    '<label style="flex-direction:row;align-items:center;gap:.6rem;font-weight:500"><input type="checkbox" data-set="voz"' + (st.voz ? ' checked' : '') + '> Voz suave que guía («inhalá», «exhalá» y los pasos)</label>' +
+    '<label>Guía durante la práctica<select data-set="guia">' + [['voz','Voz suave'],['tonos','Sonidos suaves, sin palabras'],['nada','Nada, solo la animación']].map(function(o){ return '<option value="' + o[0] + '"' + (st.guia === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label><button class="btn small" data-act="testguia">Probar la guía</button>' +
     '<label>Sonido de fondo<select data-set="fondo">' + FONDOS.map(function(f){ return '<option value="' + f[0] + '"' + (st.fondo === f[0] ? ' selected' : '') + '>' + f[1] + '</option>'; }).join('') + '</select></label>' +
     '<label>Volumen del fondo<input type="range" min="0.1" max="1" step="0.05" value="' + (st.volFondo || .5) + '" data-set="volFondo"></label>' +
     '<button class="btn small" data-act="testbg" id="testBg">Probar sonido</button>' +
-    '<label style="flex-direction:row;align-items:center;gap:.6rem;font-weight:500"><input type="checkbox" data-set="sonido"' + (st.sonido ? ' checked' : '') + '> Campanita suave al cambiar de fase</label>' +
-    '<p class="small muted">También podés cambiarlo durante la práctica, arriba de la pantalla. La voz depende de las voces que tenga tu celular.</p></div>';
+    '<p class="small muted">También podés cambiarlo durante la práctica, arriba de la pantalla. Se escucha aunque el celular esté en silencio: si no oís nada, subí el volumen.</p></div>';
 }
 var wake = null;
 function lockScreen(){ try{ if(navigator.wakeLock) navigator.wakeLock.request('screen').then(function(w){ wake = w; }).catch(function(){}); }catch(e){} }
@@ -602,6 +656,7 @@ var reduceMotion = false; try{ reduceMotion = window.matchMedia('(prefers-reduce
 
 function startPlayer(opts){
   // opts: { title, steps, type, rateBefore, after:function }
+  unlockAudio();
   P = { o:opts, i:0, stepStart:0, paused:false, pausedAt:0, phase:-1, before:null, timer:null };
   var el = document.getElementById('player');
   el.hidden = false;
@@ -619,10 +674,10 @@ function renderRate(which){
     '<button class="btn ghost" data-act="p-rate" data-w="' + which + '" data-v="">Saltear</button></div></div>';
 }
 function beginSteps(){
-  lockScreen();
+  unlockAudio(); lockScreen();
   var el = document.getElementById('player');
   startBg();
-  el.innerHTML = '<div class="player-in"><div class="p-top"><span class="eyebrow" id="pT"></span><div class="row"><button class="btn ghost small" data-act="p-voz" id="pVoz">' + (state.settings.voz ? 'Voz: sí' : 'Voz: no') + '</button><button class="btn ghost small" data-act="p-fondo" id="pFondo">' + fondoName(state.settings.fondo) + '</button><button class="btn ghost small" data-act="p-close">Terminar</button></div></div>' +
+  el.innerHTML = '<div class="player-in"><div class="p-top"><span class="eyebrow" id="pT"></span><div class="row"><button class="btn ghost small" data-act="p-voz" id="pVoz">' + guiaLabel() + '</button><button class="btn ghost small" data-act="p-fondo" id="pFondo">' + fondoName(state.settings.fondo) + '</button><button class="btn ghost small" data-act="p-close">Terminar</button></div></div>' +
     '<div class="p-progress"><i id="pBar"></i></div>' +
     '<div class="p-stage"><p class="p-title" id="pTitle"></p><div class="orb-wrap" id="pOrbW" hidden><div class="orb" id="pOrb"></div><div class="orb-label" id="pOrbL"></div></div><p class="p-text" id="pText"></p><p class="p-time" id="pTime"></p></div>' +
     '<div class="p-ctrl"><button class="btn" data-act="p-pause" id="pPause">Pausa</button><button class="btn" data-act="p-next">Siguiente</button></div></div>';
@@ -638,14 +693,16 @@ function showStep(){
   document.getElementById('pText').textContent = s.text;
   var hasB = !!s.breath;
   document.getElementById('pOrbW').hidden = !hasB;
-  if(!hasB) speak(s.title + '. ' + s.text);
+  P.extra = 0;
+  if(!hasB){ var au = speak(s.title + '. ' + s.text);
+    if(au && s.tag !== 'tensá') au.onloadedmetadata = function(){ if(P && P.o.steps[P.i] === s && isFinite(au.duration)) P.extra = Math.max(0, au.duration + .8 - s.secs); }; }
   if(s.tag === 'tensá') tone(392, .35); else if(s.tag === 'soltá') tone(262, .8);
 }
 function tick(){
   if(!P || P.paused) return;
   var s = P.o.steps[P.i];
-  var el = (Date.now() - P.stepStart) / 1000;
-  var left = Math.max(0, Math.ceil(s.secs - el));
+  var el = (Date.now() - P.stepStart) / 1000, dur = s.secs + (P.extra || 0);
+  var left = Math.max(0, Math.ceil(dur - el));
   var tEl = document.getElementById('pTime'); if(tEl) tEl.textContent = fmtSecs(left);
   var bar = document.getElementById('pBar'); if(bar) bar.style.width = Math.min(100, ((P.done + Math.min(el, s.secs)) / P.total) * 100) + '%';
   if(s.breath){
@@ -657,11 +714,11 @@ function tick(){
       var orb = document.getElementById('pOrb');
       if(orb){ orb.style.transition = reduceMotion ? 'none' : 'transform ' + ph[1] + 's ease-in-out'; orb.style.transform = 'scale(' + ph[2] + ')'; }
       var lab = document.getElementById('pOrbL'); if(lab) lab.textContent = ph[0];
-      tone(idx === 0 ? 330 : (idx === pat.phases.length - 1 ? 247 : 370), .5);
+      bowl(idx === 0 ? 'in' : (idx === pat.phases.length - 1 ? 'out' : 'hold'), ph[1]);
       speak(ph[0].toLowerCase(), true);
     }
   }
-  if(el >= s.secs){ P.done += s.secs; nextStep(); }
+  if(el >= dur){ P.done += s.secs; nextStep(); }
 }
 function fmtSecs(s){ var m = Math.floor(s / 60), r = s % 60; return m + ':' + (r < 10 ? '0' : '') + r; }
 function nextStep(){
@@ -670,7 +727,7 @@ function nextStep(){
 }
 function finishSteps(complete){
   clearInterval(P.timer); P.timer = null; unlockScreen(); stopBg();
-  try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  hush();
   P.complete = complete;
   P.elapsedSec = P.done + (complete ? 0 : (Date.now() - P.stepStart) / 1000);
   P.elapsedMin = Math.max(1, Math.round(P.elapsedSec / 60));
@@ -687,7 +744,7 @@ function endPlayer(after){
 }
 function closePlayer(){
   if(P && P.timer) clearInterval(P.timer);
-  unlockScreen(); stopBg(); try{ if(window.speechSynthesis) window.speechSynthesis.cancel(); }catch(e){}
+  unlockScreen(); stopBg(); hush();
   var el = document.getElementById('player'); el.hidden = true; el.innerHTML = '';
   P = null;
 }
@@ -724,7 +781,7 @@ var TOOLS = [
  ['pensamientos','Pensamientos','Registro, incertidumbre, «¿se cumplió?»'],
  ['circulo','Mi círculo','Entender qué dispara tu ansiedad'],
  ['social','Social','Muletas, atención afuera, escalera'],
- ['sensaciones','Sensaciones','Perderle el miedo al calor y la transpiración'],
+ ['sensaciones','Sensaciones','Perderle el miedo a las sensaciones del cuerpo'],
  ['ayuda','Ayuda','Cuándo consultar y teléfonos'],
  ['datos','Tus datos','Respaldo y ajustes']
 ];
@@ -754,12 +811,24 @@ function render(){
 
 var V = {}, M = {};
 
+var ACT_SUG = ['Caminar','Correr','Gimnasio','Bici','Natación','Yoga','Fútbol','Bailar','Kinesio'];
+function chkb(name, label, on, val){ return '<label style="flex-direction:row;align-items:center;gap:.6rem;font-weight:500"><input type="checkbox" name="' + name + '"' + (val ? ' value="' + esc(val) + '"' : '') + (on ? ' checked' : '') + '> ' + esc(label) + '</label>'; }
+function areasForm(pr){ var a = pr && pr.areas ? pr.areas : {}; return '<label>¿Cómo querés que te llame? <span class="hint">Opcional.</span><input type="text" name="name" maxlength="30" value="' + esc(pr && pr.name || '') + '"></label>' +
+  '<p class="h3">¿Qué querés trabajar?</p><p class="small muted">La ansiedad y la cabeza que no para están siempre. Marcá lo demás que te pase; lo que no marques no aparece. Lo podés cambiar cuando quieras en «Tus datos».</p>' +
+  AREAS.map(function(x){ return chkb('a_' + x[0], x[1], a[x[0]] === true); }).join(''); }
+function readAreas(f){ var pr = { name:(f.elements.name.value || '').trim(), areas:{} }; AREAS.forEach(function(x){ pr.areas[x[0]] = !!f.elements['a_' + x[0]].checked; }); return pr; }
 V.bienvenida = function(){
   return '<div class="card soft"><p class="eyebrow">Hola</p><p class="h2">Bajar la alarma, de a poco</p>' +
-  '<p>Esta app te acompaña 8 semanas para entender cómo funciona tu cabeza y entrenar el cuerpo para estar más tranquilo: respirar, soltar la mandíbula y el cuello, manejar la preocupación, la ansiedad social y el miedo a transpirar.</p>' +
+  '<p>Esta app te acompaña 8 semanas para entender cómo funciona tu cabeza y entrenar el cuerpo para estar más tranquilo: respirar, soltar la tensión, manejar la preocupación y animarte de a poco a lo que te cuesta.</p>' +
   '<p>Son unos 15 a 20 minutos por día, repartidos. Está armada con lo que tiene evidencia (guías clínicas y estudios), y no reemplaza a un psicólogo, un médico, un dentista o un kinesiólogo: si en algún momento hace falta, en Ayuda está cuándo consultar.</p>' +
-  '<p>Todo lo que anotes queda solo en este celular, en este navegador. Nada sale de acá.</p></div>' +
-  '<div class="card"><p class="h3">Antes de empezar</p><ul class="dots"><li>Abrila siempre desde el mismo lugar (el mismo navegador o la misma app), porque cada uno guarda los datos aparte.</li><li>Cada tanto, copiá un respaldo desde «Tus datos».</li><li>Los avisos de la mandíbula se hacen con alarmas del reloj del celular: la app te sugiere los horarios.</li></ul></div>' +
+  '<p>Todo lo que anotes queda solo en este celular. Nada sale de acá.</p></div>' +
+  '<form id="setupForm" class="form" onsubmit="return false">' +
+  '<div class="card">' + areasForm(null) + '</div>' +
+  '<div class="card"><p class="h3">¿Qué actividad física hacés o te gustaría hacer?</p><p class="small muted">Para anotar los días que te movés. Puede quedar vacío.</p><div class="grid2">' +
+  ACT_SUG.map(function(a){ return chkb('act', a, false, a); }).join('') + '</div><label>Otra<input type="text" name="otra" maxlength="40" placeholder="Ej.: tenis, pilates"></label></div>' +
+  '<div class="card"><label>¿Cuántos vasos de agua querés tomar por día?<input type="number" name="water" min="1" max="20" value="8" inputmode="numeric"></label></div>' +
+  '</form>' +
+  '<div class="card"><p class="h3">Antes de empezar</p><ul class="dots"><li>En el iPhone: abrila en Safari, tocá Compartir y «Agregar a inicio», y usala siempre desde ese ícono. Cada lugar guarda los datos aparte.</li><li>Cada tanto, copiá un respaldo desde «Tus datos».</li><li>Los recordatorios se hacen con alarmas del reloj del celular: la app te sugiere los horarios.</li></ul></div>' +
   '<button class="btn primary big block" data-act="start">Empezar hoy</button>';
 };
 
@@ -776,30 +845,30 @@ V.hoy = function(){
   var done = [!!mo, prToday.length > 0, readToday, water >= goal && nMeals >= 3, !!night];
   var nDone = done.filter(Boolean).length;
   var y = new Date(); y.setDate(y.getDate() - 1); var yn = state.nights[ymd(y)];
-  var s = '<div class="card soft"><p class="eyebrow">Semana ' + w.n + ' de 8 · día ' + dayN + ' · ' + esc(w.title) + '</p><p class="h2">Hoy: ' + nDone + ' de 5 pasos</p>' +
+  var s = '<div class="card soft"><p class="eyebrow">' + (state.profile && state.profile.name ? 'Hola, ' + esc(state.profile.name) + ' · ' : '') + 'Semana ' + w.n + ' de 8 · día ' + dayN + ' · ' + esc(wt(w)) + '</p><p class="h2">Hoy: ' + nDone + ' de 5 pasos</p>' +
     '<div class="bar"><i style="width:' + (nDone / 5 * 100) + '%"></i></div>' +
     (yn && yn.manana ? '<p class="small">Anoche te propusiste: <b>' + esc(yn.manana) + '</b></p>' : '<p class="small muted">Seguí los pasos en orden. Si un día no llegás a todos, está bien: lo que suma es la constancia.</p>') + '</div>';
   // 1
-  var b1 = mo ? '<p class="small">Dormiste ' + (mo.sueno !== '' && mo.sueno != null ? esc(mo.sueno) + ' h' : '–') + ' · mandíbula rígida: ' + (mo.rigida === 'si' ? 'sí' : 'no') + ' · dolor de cabeza: ' + (mo.cabeza === 'si' ? 'sí' : 'no') + '</p>' :
+  var b1 = mo ? '<p class="small">Dormiste ' + (mo.sueno !== '' && mo.sueno != null ? esc(mo.sueno) + ' h' : '–') + (has('mandibula') ? ' · mandíbula rígida: ' + (mo.rigida === 'si' ? 'sí' : 'no') : '') + (has('cabeza') ? ' · dolor de cabeza: ' + (mo.cabeza === 'si' ? 'sí' : 'no') : '') + '</p>' :
     '<form class="form" data-form="morning"><div class="grid2"><label>Horas que dormiste<input type="number" name="sueno" min="0" max="14" step="0.5" inputmode="decimal"></label>' +
-    '<label>¿Mandíbula rígida?<select name="rigida"><option value="no">No</option><option value="si">Sí</option></select></label></div>' +
-    '<label>¿Te levantaste con dolor de cabeza?<select name="cabeza"><option value="no">No</option><option value="si">Sí</option></select></label><button class="btn primary small">Listo</button></form>';
+    (has('mandibula') ? '<label>¿Mandíbula rígida?<select name="rigida"><option value="no">No</option><option value="si">Sí</option></select></label>' : '') + '</div>' +
+    (has('cabeza') ? '<label>¿Te levantaste con dolor de cabeza?<select name="cabeza"><option value="no">No</option><option value="si">Sí</option></select></label>' : '') + '<button class="btn primary small">Listo</button></form>';
   s += stepCard(1, 'Al levantarte · 30 segundos', done[0], b1);
   // 2
-  var b2 = '<p><b>' + esc(w.practica.label) + '</b> · unos ' + (w.practica.min || 5) + ' min</p><p class="small muted">' + esc(w.extra) + '</p>' +
+  var b2 = '<p><b>' + esc(w.practica.label) + '</b> · unos ' + (w.practica.min || 5) + ' min</p><p class="small muted">' + esc(wx(w)) + '</p>' +
     (done[1] ? '<p class="small">Hecho: ' + minsToday + ' min hoy. Podés repetir si querés.</p>' : '') + '<button class="btn ' + (done[1] ? '' : 'primary ') + 'block" data-act="' + w.practica.act + '">' + (done[1] ? 'Otra vez' : 'Empezar') + '</button>';
   s += stepCard(2, 'Tu práctica', done[1], b2);
   // 3
   var rec = recLesson();
   var b3 = rec ? '<a class="tile" style="min-height:0" href="#leccion-' + rec.id + '"><b>' + esc(L[rec.id].title) + '</b><span>' + esc(rec.why) + ' · ' + L[rec.id].mins + ' min</span></a>' : '<p class="small muted">Leíste todo. Podés repasar en Aprender.</p>';
-  if(!w.lessons.filter(function(id){ return !state.read[id]; }).length && w.n < 8) b3 += '<p class="small muted">Ya leíste las de esta semana. Cuando la práctica te salga bien, pasá a la siguiente.</p><button class="btn small" data-act="nextweek">Pasar a la semana ' + (w.n + 1) + '</button>';
+  if(!wl(w).filter(function(id){ return !state.read[id]; }).length && w.n < 8) b3 += '<p class="small muted">Ya leíste las de esta semana. Cuando la práctica te salga bien, pasá a la siguiente.</p><button class="btn small" data-act="nextweek">Pasar a la semana ' + (w.n + 1) + '</button>';
   s += stepCard(3, 'Leé · 2 o 3 minutos', done[2], b3);
   // 4
   var todayActs = state.moves.filter(function(m){ return m.d === t; }).map(function(m){ return m.act; });
   var checksToday = state.checks.filter(function(c){ return ymd(c.t) === t; }).length;
   var b4 = '<div class="sub"><p class="small"><b>Agua</b></p>' + waterRow() + '</div>' +
     '<div class="sub"><p class="small"><b>Comidas</b></p>' + mealsRow() + '</div>' +
-    '<div class="sub"><p class="small"><b>Mandíbula</b> · cuando suene una alarma, tocá cómo estaba (' + checksToday + ' hoy)</p>' + jawBtns() + '</div>' +
+    (has('mandibula') ? '<div class="sub"><p class="small"><b>Mandíbula</b> · cuando suene una alarma, tocá cómo estaba (' + checksToday + ' hoy)</p>' + jawBtns() + '</div>' : '') +
     '<div class="sub"><p class="small"><b>Movimiento</b> · tocá lo que hiciste hoy</p>' + moveChips() + (todayActs.length ? '' : '<p class="small muted">Si hoy no toca, no pasa nada.</p>') + '</div>' + todayPending();
   s += stepCard(4, 'Durante el día · cuidá la base', done[3], b4);
   // 5
@@ -811,7 +880,7 @@ V.hoy = function(){
   // siempre a mano
   var tToday = state.tension.filter(function(c){ return ymd(c.t) === t; }); var lastT = tToday.length ? tToday[tToday.length - 1].v : null;
   s += '<div class="card"><p class="eyebrow">En cualquier momento</p><p class="h3">¿Cuánta tensión tenés ahora?</p><div class="scale">' + scaleBtns('tension', lastT) + '</div>' +
-    '<div class="grid2"><a class="btn" href="#dolor">Me duele la cabeza</a><button class="btn" data-act="pause">Pausa de 90 s</button></div>' +
+    (has('cabeza') ? '<div class="grid2"><a class="btn" href="#dolor">Me duele la cabeza</a><button class="btn" data-act="pause">Pausa de 90 s</button></div>' : '<button class="btn block" data-act="pause">Pausa de 90 s</button>') +
     '<button class="btn sos block" data-act="go" data-r="acelerado">Estoy acelerado ahora</button></div>';
   s += backupNudge();
   return s;
@@ -835,10 +904,10 @@ V.aprender = function(){
   var cw = currentWeek();
   var s = '<div class="card soft"><p class="eyebrow">Plan de 8 semanas</p><p>Unas pocas lecciones cortas por semana y una práctica diaria. Si una semana no alcanzó, quedate más tiempo en ella: no hay apuro.</p></div>';
   WEEKS.forEach(function(w){
-    var read = w.lessons.filter(function(id){ return state.read[id]; }).length;
-    s += '<details class="acc"' + (w.n === cw ? ' open' : '') + '><summary><span>Semana ' + w.n + ' · ' + esc(w.title) + (w.n === cw ? ' <span class="chip acc">ahora</span>' : '') + '</span><span class="small muted tnum">' + read + '/' + w.lessons.length + '</span></summary><div>' +
-      '<ul class="list">' + w.lessons.map(function(id){ var l = L[id]; return '<li><a class="tile" style="min-height:0" href="#leccion-' + id + '"><b>' + (state.read[id] ? '✓ ' : '') + esc(l.title) + '</b><span>' + l.mins + ' min</span></a></li>'; }).join('') + '</ul>' +
-      '<p class="small"><b>Práctica:</b> ' + esc(w.practica.label) + '. ' + esc(w.extra) + '</p>' +
+    var read = wl(w).filter(function(id){ return state.read[id]; }).length;
+    s += '<details class="acc"' + (w.n === cw ? ' open' : '') + '><summary><span>Semana ' + w.n + ' · ' + esc(wt(w)) + (w.n === cw ? ' <span class="chip acc">ahora</span>' : '') + '</span><span class="small muted tnum">' + read + '/' + wl(w).length + '</span></summary><div>' +
+      (wl(w).length ? '' : '<p class="small muted">Esta semana no tiene lecturas: es solo práctica.</p>') + '<ul class="list">' + wl(w).map(function(id){ var l = L[id]; return '<li><a class="tile" style="min-height:0" href="#leccion-' + id + '"><b>' + (state.read[id] ? '✓ ' : '') + esc(l.title) + '</b><span>' + l.mins + ' min</span></a></li>'; }).join('') + '</ul>' +
+      '<p class="small"><b>Práctica:</b> ' + esc(w.practica.label) + '. ' + esc(wx(w)) + '</p>' +
       (w.n !== cw ? '<button class="btn" data-act="setweek" data-v="' + w.n + '">Ir a esta semana</button>' : '') + '</div></details>';
   });
   s += '<div class="card"><p class="h3">Mi plan para las semanas difíciles</p><p class="small muted">Tus señales tempranas, qué práctica te sirve más y qué vas a hacer cuando aparezcan.</p><textarea id="relapse" data-save="relapse" placeholder="Ej.: si duermo mal dos noches seguidas y aprieto la mandíbula, vuelvo a la relajación de 4 grupos todos los días y retomo la escalera.">' + esc(state.relapse) + '</textarea></div>';
@@ -859,7 +928,8 @@ V.leccion = function(r){
 M.leccion = function(r){ var id = r.replace('leccion-', ''); if(L[id] && !state.read[id]){ state.read[id] = now(); save(); } };
 
 V.herramientas = function(){
-  return '<div class="grid2">' + TOOLS.map(function(t){ return '<a class="tile" href="#' + t[0] + '"><b>' + t[1] + '</b><span>' + t[2] + '</span></a>'; }).join('') + '</div>';
+  var TOOL_AREA = { mandibula:['mandibula'], cuello:['cuello'], dolor:['cabeza'], social:['social'] };
+  return '<div class="grid2">' + TOOLS.filter(function(t){ return !TOOL_AREA[t[0]] || hasAny(TOOL_AREA[t[0]]); }).map(function(t){ return '<a class="tile" href="#' + t[0] + '"><b>' + t[1] + '</b><span>' + t[2] + '</span></a>'; }).join('') + '</div>';
 };
 
 V.acelerado = function(){
@@ -1111,6 +1181,7 @@ V.datos = function(){
   return '<div class="card"><p class="h3">Tus datos</p><p class="small">Todo queda en este navegador, en este celular. Si borrás los datos del navegador o lo abrís desde otra app, no aparecen. Tenés ' + n + ' registros.</p>' +
     '<button class="btn primary" data-act="backup">Copiar respaldo</button><p class="small muted">Pegalo en una nota o mandatelo por mail para guardarlo. ' + (state.lastBackup ? 'Último respaldo: ' + fmtDate(state.lastBackup) + '.' : 'Todavía no copiaste ninguno.') + '</p></div>' +
     '<div class="card"><p class="h3">Restaurar</p><textarea id="restoreTxt" placeholder="Pegá acá un respaldo"></textarea><button class="btn" data-act="restore">Restaurar</button></div>' +
+    '<form id="profForm" class="card form" onsubmit="return false">' + areasForm(state.profile) + '<button class="btn" data-act="saveprofile">Guardar</button></form>' +
     soundSettings() +
     '<div class="card"><p class="small muted">Empezaste el ' + (state.start ? fmtDate(state.start + 'T12:00:00') : '–') + '. Semana actual: ' + currentWeek() + '.</p></div>' +
     '<div class="card"><p class="h3">Borrar todo</p><p class="small muted">No se puede deshacer.</p><button class="btn" data-act="wipe" id="wipeBtn">Borrar todos los datos</button></div>';
@@ -1244,7 +1315,7 @@ function adv(){
   if(ch.length >= 10){ var pct = Math.round(ch.filter(function(c){ return c.s !== 'R'; }).length / ch.length * 100);
     if(pct > 50) add(62, '', 'Mandíbula tensa seguido', 'En el ' + pct + ' % de tus chequeos de esta semana la mandíbula no estaba relajada. Probá la relajación «mientras hacés otra cosa» y soltar la mandíbula cada vez que agarrás el celular.', 'relajar', 'Relajar', 'l21');
     else if(pct <= 30) add(30, 'ok', 'Bien con la mandíbula', 'Solo en el ' + pct + ' % de tus chequeos estaba tensa. Seguí con las alarmas unas semanas más, hasta que sea automático.'); }
-  else if(currentWeek() >= 3 && ch.length < 5) add(40, '', 'Pocos chequeos de mandíbula', 'Esta semana hiciste ' + ch.length + '. Poné 8 a 10 alarmas en el reloj del celular con los horarios que te sugiere la app.', 'mandibula', 'Ver horarios');
+  else if(has('mandibula') && currentWeek() >= 3 && ch.length < 5) add(40, '', 'Pocos chequeos de mandíbula', 'Esta semana hiciste ' + ch.length + '. Poné 8 a 10 alarmas en el reloj del celular con los horarios que te sugiere la app.', 'mandibula', 'Ver horarios');
   var tn = lastDays(state.tension, 14);
   if(tn.length >= 6){ var b = { 'la mañana':[], 'la tarde':[], 'la noche':[] };
     tn.forEach(function(x){ var hr = new Date(x.t).getHours(); (hr < 12 ? b['la mañana'] : hr < 19 ? b['la tarde'] : b['la noche']).push(x.v); });
@@ -1291,7 +1362,7 @@ function adv(){
 }
 function recLesson(){
   var t = ymd(), cands = [];
-  var push = function(ids, why){ cands.push({ ids:ids, why:why }); };
+  var push = function(ids, why){ ids = ids.filter(lessonOn); if(ids.length) cands.push({ ids:ids, why:why }); };
   if(state.headaches.some(function(x){ return x.d === t; }) || (state.mornings[t] && state.mornings[t].cabeza === 'si')) push(['l11','l4'], 'Porque hoy anotaste dolor de cabeza.');
   var mo = state.mornings[t]; if(mo && hasNum(mo.sueno) && +mo.sueno < 6) push(['l22'], 'Porque dormiste poco.');
   var acc = state.practice.some(function(p){ return p.type === 'accel' && ymd(p.t) === t; }), hiT = state.tension.some(function(x){ return ymd(x.t) === t && x.v >= 7; });
@@ -1303,7 +1374,7 @@ function recLesson(){
   if(state.checks.filter(function(c){ return ymd(c.t) === t && c.s !== 'R'; }).length >= 3) push(['l9','l21'], 'Porque hoy la mandíbula estuvo tensa varias veces.');
   if(state.tasks.filter(function(x){ return !x.done; }).length >= 6) push(['l25'], 'Porque tenés muchos pendientes dando vueltas.');
   for(var i = 0; i < cands.length; i++){ var un = cands[i].ids.filter(function(id){ return !state.read[id]; }); if(un.length) return { id:un[0], why:cands[i].why }; }
-  var w = WEEKS[currentWeek() - 1], nx = w.lessons.filter(function(id){ return !state.read[id]; })[0];
+  var w = WEEKS[currentWeek() - 1], nx = wl(w).filter(function(id){ return !state.read[id]; })[0];
   if(nx) return { id:nx, why:'La que sigue de esta semana.' };
   if(cands.length) return { id:cands[0].ids[0], why:cands[0].why + ' Vale releerla.' };
   var any = Object.keys(L).filter(function(id){ return !state.read[id]; })[0];
@@ -1333,17 +1404,17 @@ V.progreso = function(){
   s += '<details class="acc"' + (dueG ? ' open' : '') + '><summary><span>Ansiedad · GAD-7 ' + (dueG ? '<span class="chip warn">toca</span>' : '') + '</span><span class="small muted">cada 2 semanas</span></summary><div>' + (g.length > 1 ? chart(g.map(function(x){ return { t:x.t, y:x.score }; }), 0, 21, [{ y:5, l:'leve' }, { y:10, l:'moderada' }, { y:15, l:'grave' }]) : '') +
     (lastG ? '<p class="small">Última: <b>' + lastG.score + '</b> (' + gadLabel(lastG.score) + '), ' + fmtDate(lastG.t) + '. Un cambio real es de unos 4 puntos.</p>' : '') +
     '<form class="form" data-form="gad7"><p class="small muted">Durante las últimas 2 semanas, ¿con qué frecuencia te molestó lo siguiente?</p>' + GAD7.map(function(q, i){ return radioQ('g' + i, q, GAD_OPTS); }).join('') + '<button class="btn primary">Guardar</button></form></div></details>';
-  s += '<details class="acc"' + (dueS && !dueG ? ' open' : '') + '><summary><span>Ansiedad social · Mini-SPIN ' + (dueS ? '<span class="chip warn">toca</span>' : '') + '</span><span class="small muted">semanal</span></summary><div>' + (sp.length > 1 ? chart(sp.map(function(x){ return { t:x.t, y:x.score }; }), 0, 12, [{ y:6, l:'corte' }]) : '') +
+  if(has('social')) s += '<details class="acc"' + (dueS && !dueG ? ' open' : '') + '><summary><span>Ansiedad social · Mini-SPIN ' + (dueS ? '<span class="chip warn">toca</span>' : '') + '</span><span class="small muted">semanal</span></summary><div>' + (sp.length > 1 ? chart(sp.map(function(x){ return { t:x.t, y:x.score }; }), 0, 12, [{ y:6, l:'corte' }]) : '') +
     (lastS ? '<p class="small">Última: <b>' + lastS.score + '</b> de 12' + (lastS.score >= 6 ? ' (6 o más sugiere ansiedad social; si se sostiene, vale consultar)' : '') + '.</p>' : '') +
     '<form class="form" data-form="spin"><p class="small muted">Durante la última semana, ¿cuánto te pasó?</p>' + SPIN3.map(function(q, i){ return radioQ('s' + i, q, SPIN_OPTS); }).join('') + '<button class="btn primary">Guardar</button></form></div></details>';
-  s += '<details class="acc"><summary><span>Dolor de cuello y mandíbula</span><span class="small muted">semanal</span></summary><div>' + (nk.length > 1 ? chart(nk.map(function(x){ return { t:x.t, y:x.cuello }; }), 0, 10, []) : '') +
+  if(hasAny(['cuello','mandibula'])) s += '<details class="acc"><summary><span>Dolor de cuello y mandíbula</span><span class="small muted">semanal</span></summary><div>' + (nk.length > 1 ? chart(nk.map(function(x){ return { t:x.t, y:x.cuello }; }), 0, 10, []) : '') +
     '<form class="form" data-form="dolor"><label>Dolor de cuello promedio de la semana (0 a 10)<input type="number" name="cuello" min="0" max="10" inputmode="numeric" required></label><label>Peor momento de cuello (0 a 10)<input type="number" name="peor" min="0" max="10" inputmode="numeric"></label><label>Dolor de mandíbula promedio (0 a 10)<input type="number" name="mand" min="0" max="10" inputmode="numeric"></label><p class="small muted">Un cambio de 2 puntos ya es un cambio que se nota.</p><button class="btn primary">Guardar</button></form></div></details>';
   var weeks = lastWeeks(8);
   var jawSeries = weeks.map(function(w){ var c = state.checks.filter(function(x){ return weekStart(x.t) === w; }); return c.length ? { t:w + 'T12:00:00', y:Math.round(c.filter(function(x){ return x.s !== 'R'; }).length / c.length * 100) } : null; }).filter(Boolean);
   var minSeries = weeks.map(function(w){ return { t:w + 'T12:00:00', y:state.practice.filter(function(p){ return weekStart(p.t) === w; }).reduce(function(a, p){ return a + (p.min || 0); }, 0) }; });
   var hdSeries = weeks.map(function(w){ var d = {}; state.headaches.forEach(function(h){ if(weekStart(h.d + 'T12:00:00') === w) d[h.d] = 1; }); return { t:w + 'T12:00:00', y:Object.keys(d).length }; });
   s += '<div class="card"><p class="eyebrow">Minutos de práctica por semana</p>' + chart(minSeries, 0, Math.max(30, Math.max.apply(null, minSeries.map(function(x){ return x.y; }))), []) + '</div>';
-  s += '<div class="card"><p class="eyebrow">Días con dolor de cabeza por semana</p>' + chart(hdSeries, 0, 7, []) + '</div>';
+  if(has('cabeza')) s += '<div class="card"><p class="eyebrow">Días con dolor de cabeza por semana</p>' + chart(hdSeries, 0, 7, []) + '</div>';
   if(jawSeries.length > 1) s += '<div class="card"><p class="eyebrow">% de chequeos con la mandíbula no relajada</p>' + chart(jawSeries, 0, 100, [{ y:25, l:'sin dolor' }]) + '</div>';
   var tl = state.tension.slice(-30); if(tl.length > 2) s += '<div class="card"><p class="eyebrow">Tensión de los chequeos (últimos 30)</p>' + chart(tl.map(function(x){ return { t:x.t, y:x.v }; }), 0, 10, []) + '</div>';
   var acc = state.practice.filter(function(p){ return p.type === 'accel' && p.before != null && p.after != null; });
@@ -1384,7 +1455,14 @@ function chart(pts, min, max, refs){
 var A = {
   back:function(){ if(history.length > 1) history.back(); else go('hoy'); },
   go:function(el){ go(el.dataset.r); },
-  start:function(){ state.start = ymd(); save(); go('hoy'); },
+  start:function(){ var f = document.getElementById('setupForm');
+    if(f){ state.profile = readAreas(f); var acts = []; Array.prototype.forEach.call(f.querySelectorAll('input[name=act]:checked'), function(x){ acts.push(x.value); });
+      (f.elements.otra.value || '').split(',').forEach(function(x){ x = x.trim(); if(x && acts.indexOf(x) < 0) acts.push(x); }); state.acts = acts;
+      var wg = parseInt(f.elements.water.value, 10); if(wg > 0) state.waterGoal = wg; }
+    else if(!state.profile) state.profile = { name:'', areas:allAreas() };
+    state.start = ymd(); state.circles = seedCircles(); state.ladder = seedLadder(); save(); go('hoy'); },
+  saveprofile:function(){ var f = document.getElementById('profForm'); if(!f) return; state.profile = readAreas(f);
+    if(!state.ladder || !state.ladder.length) state.ladder = seedLadder(); save(); toast('Guardado'); render(); },
   scale:function(el){ state.tension.push({ t:now(), v:+el.dataset.v }); save(); toast('Anotado: ' + el.dataset.v + '/10'); render(); },
   jaw:function(el){ state.checks.push({ t:now(), s:el.dataset.v }); save(); toast(el.dataset.v === 'R' ? 'Bien. Seguí así.' : 'Anotado. Labios juntos, dientes separados, lengua arriba.'); render(); },
   nextweek:function(){ state.week = Math.min(8, currentWeek() + 1); save(); render(); },
@@ -1401,7 +1479,7 @@ var A = {
   'go-relajar':function(){ go('relajar'); },
   reroll:function(){ state.alarms = { d:ymd(), times:randomTimes() }; save(); render(); },
   'p-close':function(){ if(!P) return; if(P.timer){ finishSteps(false); } else if(P.stage === 'after'){ endPlayer(null); } else closePlayer(); },
-  'p-pause':function(el){ if(!P) return; if(!P.paused){ P.paused = true; P.pausedAt = Date.now(); el.textContent = 'Seguir'; try{ window.speechSynthesis && window.speechSynthesis.pause(); }catch(e){} } else { var d = Date.now() - P.pausedAt; P.stepStart += d; P.cycleStart += d; P.paused = false; el.textContent = 'Pausa'; try{ window.speechSynthesis && window.speechSynthesis.resume(); }catch(e){} } },
+  'p-pause':function(el){ if(!P) return; if(!P.paused){ P.paused = true; P.pausedAt = Date.now(); el.textContent = 'Seguir'; try{ window.speechSynthesis && window.speechSynthesis.pause(); }catch(e){} try{ if(VOZ_EL && !VOZ_EL.ended) VOZ_EL.pause(); }catch(e){} } else { var d = Date.now() - P.pausedAt; P.stepStart += d; P.cycleStart += d; P.paused = false; el.textContent = 'Pausa'; try{ window.speechSynthesis && window.speechSynthesis.resume(); }catch(e){} try{ if(VOZ_EL && VOZ_EL.src && !VOZ_EL.ended && VOZ_EL.currentTime > 0) VOZ_EL.play(); }catch(e){} } },
   'p-next':function(){ if(!P || !P.timer) return; var s = P.o.steps[P.i]; P.done += Math.min(s.secs, (Date.now() - P.stepStart) / 1000); P.total -= Math.max(0, s.secs - (Date.now() - P.stepStart) / 1000); nextStep(); },
   'p-rate':function(el){ var v = el.dataset.v === '' ? null : +el.dataset.v; if(el.dataset.w === 'before'){ P.before = v; beginSteps(); } else endPlayer(v); },
   del:function(el){ var k = el.dataset.k, id = el.dataset.id; state[k] = state[k].filter(function(x){ return x.id !== id; }); save(); toast('Borrado'); render(); },
@@ -1410,7 +1488,7 @@ var A = {
   editstep:function(el){ var x = state.ladder.filter(function(y){ return y.id === el.dataset.id; })[0]; var f = document.getElementById('stepForm'); f.innerHTML = stepForm(x); f.scrollIntoView({ behavior:reduceMotion ? 'auto' : 'smooth' }); },
   planexp:function(el){ var x = state.ladder.filter(function(y){ return y.id === el.dataset.id; })[0]; var f = document.getElementById('expForm'); f.innerHTML = '<p class="h3">Planear este escalón</p>' + expForm(x); f.scrollIntoView({ behavior:reduceMotion ? 'auto' : 'smooth' }); },
   sens:function(el){ var x = SENS.filter(function(y){ return y.k === el.dataset.k; })[0];
-    startPlayer({ title:x.name, type:'sens', steps:[{ title:x.name, text:x.how, secs:x.secs }, { title:'Quedate con las sensaciones', text:'Notá el pulso, el calor o la transpiración. No hagas nada para frenarlos: ni secarte, ni respirar para calmarte. Solo observá cómo son y cómo cambian.', secs:60 }],
+    startPlayer({ title:x.name, type:'sens', steps:sensSteps(x),
       after:function(){ go('sensaciones'); setTimeout(function(){ showSensRate(x); }, 50); } }); },
   backup:function(el){ var txt = JSON.stringify(state); var done = function(){ state.lastBackup = now(); save(); toast('Respaldo copiado'); render(); };
     try{ navigator.clipboard.writeText(txt).then(done, function(){ fallbackCopy(txt); }); }catch(e){ fallbackCopy(txt); } },
@@ -1422,13 +1500,17 @@ var A = {
   delact:function(el){ state.acts.splice(+el.dataset.i, 1); save(); render(); },
   task:function(el){ var x = state.tasks.filter(function(y){ return y.id === el.dataset.id; })[0]; if(x){ x.done = !x.done; x.doneAt = x.done ? now() : null; save(); if(x.done) toast('Hecho. Uno menos en la cabeza.'); render(); } },
   paid:function(el){ var ym = ymd().slice(0, 7); var p = state.paid[ym] = state.paid[ym] || {}; p[el.dataset.id] = !p[el.dataset.id]; save(); if(p[el.dataset.id]) toast('Listo. Uno menos en la cabeza.'); render(); },
-  'p-voz':function(el){ state.settings.voz = !state.settings.voz; save(); el.textContent = state.settings.voz ? 'Voz: sí' : 'Voz: no'; if(!state.settings.voz){ try{ window.speechSynthesis.cancel(); }catch(e){} } },
+  'p-voz':function(el){ var o = ['voz','tonos','nada']; state.settings.guia = o[(o.indexOf(state.settings.guia) + 1) % 3]; save(); el.textContent = guiaLabel(); if(state.settings.guia !== 'voz') hush(); },
+  testguia:function(){ unlockAudio(); var g = state.settings.guia;
+    if(g === 'voz'){ speak('inhalá', true); setTimeout(function(){ speak('exhalá', true); }, 3500); }
+    else if(g === 'tonos'){ bowl('in', 4); setTimeout(function(){ bowl('out', 6); }, 4000); }
+    else toast('Elegiste sin guía: solo la animación'); },
   'p-fondo':function(el){ var i = FONDOS.map(function(f){ return f[0]; }).indexOf(state.settings.fondo); state.settings.fondo = FONDOS[(i + 1) % FONDOS.length][0]; save(); el.textContent = fondoName(state.settings.fondo); startBg(); },
-  testbg:function(el){ clearTimeout(AU.testT); if(AU.bg){ stopBg(); el.textContent = 'Probar sonido'; return; } startBg(); if(AU.bg){ el.textContent = 'Parar'; AU.testT = setTimeout(function(){ stopBg(); var b = document.getElementById('testBg'); if(b) b.textContent = 'Probar sonido'; }, 10000); } else toast('Elegí un sonido de fondo primero'); },
-  wipe:function(el){ if(el.dataset.armed){ state = blank(); state.circles = seedCircles(); state.ladder = seedLadder(); save(); toast('Datos borrados'); go('bienvenida'); } else { el.dataset.armed = '1'; el.textContent = 'Tocá de nuevo para borrar todo'; el.classList.add('sos'); } }
+  testbg:function(el){ unlockAudio(); clearTimeout(AU.testT); if(AU.bg){ stopBg(); el.textContent = 'Probar sonido'; return; } startBg(); if(AU.bg){ el.textContent = 'Parar'; AU.testT = setTimeout(function(){ stopBg(); var b = document.getElementById('testBg'); if(b) b.textContent = 'Probar sonido'; }, 10000); } else toast('Elegí un sonido de fondo primero'); },
+  wipe:function(el){ if(el.dataset.armed){ state = blank(); save(); toast('Datos borrados'); go('bienvenida'); } else { el.dataset.armed = '1'; el.textContent = 'Tocá de nuevo para borrar todo'; el.classList.add('sos'); } }
 };
 ['r16','r7','r4','senal','rapida','diferencial'].forEach(function(k){ A['relax-' + k] = function(){ startPlayer({ title:'Relajación · ' + RELAX[k].name, steps:RELAX[k].steps(), type:'relax-' + k }); }; });
-function load2(){ var b = blank(); for(var k in b){ if(!(k in state)) state[k] = b[k]; } if(!state.circles) state.circles = seedCircles(); if(!state.ladder) state.ladder = seedLadder(); }
+function load2(){ migrate(); }
 function breathStep(pat, min){ return { title:'Respirá', text:pat === 'sigh' ? 'Dos inhalaciones por la nariz y una exhalación larga por la boca. Sin apuro.' : 'Por la nariz, con la panza. Lento y suave, no profundo. Si te distraés, volvé al círculo.', secs:min * 60, breath:pat }; }
 function selIn(id, el){ Array.prototype.forEach.call(document.getElementById(id).children, function(b){ b.classList.toggle('sel', b === el); }); }
 function fallbackCopy(txt){ var ta = document.getElementById('restoreTxt'); if(ta){ ta.value = txt; ta.select(); toast('Seleccioné el texto: copialo con «Copiar»'); } }
@@ -1483,7 +1565,7 @@ document.addEventListener('input', function(e){
 });
 document.addEventListener('change', function(e){
   var el = e.target;
-  if(el.dataset && el.dataset.set && el.type === 'checkbox'){ state.settings[el.dataset.set] = el.checked; save(); if(el.dataset.set === 'voz' && el.checked) speak('Inhalá. Exhalá.', true); }
+  if(el.dataset && el.dataset.set === 'guia'){ state.settings.guia = el.value; save(); A.testguia(); }
   if(el.dataset && el.dataset.set === 'fondo'){ state.settings.fondo = el.value; save(); if(AU.bg) startBg(); }
   if(el.dataset && el.dataset.num){ render(); }
 });
@@ -1491,6 +1573,17 @@ try{ if(window.speechSynthesis) window.speechSynthesis.onvoiceschanged = functio
 window.addEventListener('hashchange', function(){ if(P) closePlayer(); render(); window.scrollTo(0, 0); });
 document.addEventListener('visibilitychange', function(){ if(!document.hidden && P && P.timer && navigator.wakeLock && !wake) lockScreen(); });
 
+window.__calmaTextos = function(){
+  var out = {}, add = function(t){ out[normT(t)] = 1; };
+  var addS = function(steps){ steps.forEach(function(st){ if(st.breath) PATTERNS[st.breath].phases.forEach(function(ph){ add(ph[0].toLowerCase()); }); else add(st.title + '. ' + st.text); }); };
+  var keep = state.settings.palabra; state.settings.palabra = 'soltá';
+  addS(acceleratedSteps()); addS(pauseSteps()); addS(neck2Steps()); addS(neckFullSteps());
+  Object.keys(RELAX).forEach(function(k){ addS(RELAX[k].steps()); });
+  SENS.forEach(function(x){ addS(sensSteps(x)); });
+  Object.keys(PATTERNS).forEach(function(k){ PATTERNS[k].phases.forEach(function(ph){ add(ph[0].toLowerCase()); }); });
+  state.settings.palabra = keep;
+  return Object.keys(out);
+};
 load();
 render();
 })();
@@ -1500,7 +1593,7 @@ render();
 /* Web: modo sin internet y pedirle al celular que no borre los datos. */
 (function(){
   if('serviceWorker' in navigator){
-    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js?v=b783d26715').catch(function(){}); });
+    window.addEventListener('load', function(){ navigator.serviceWorker.register('sw.js?v=25fc222b40').catch(function(){}); });
   }
   try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persisted().then(function(p){ if(!p) navigator.storage.persist(); }); }catch(e){}
 })();
